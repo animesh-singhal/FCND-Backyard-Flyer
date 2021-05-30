@@ -24,10 +24,9 @@ class BackyardFlyer(Drone):
     def __init__(self, connection):
         super().__init__(connection)
         self.target_position = np.array([0.0, 0.0, 0.0])
-        self.all_waypoints = []
+        self.all_waypoints = self.calculate_box()     
         self.in_mission = True
         self.check_state = {} # unused
-        
         self.side = 0 # Denotes the side of the square being traced
 
         # initial state
@@ -46,7 +45,6 @@ class BackyardFlyer(Drone):
     def local_position_callback(self):
         """
         TODO: Implement this method
-
         This triggers when `MsgID.LOCAL_POSITION` is received and self.local_position contains new data
         """
         
@@ -60,47 +58,39 @@ class BackyardFlyer(Drone):
                 self.waypoint_transition()
 
                 
-        if self.flight_state == States.WAYPOINT: 
-            
-            #all_waypoints contains 4 target points. If you're pursuing the 1st side, you'll take the first target
-            current_target = self.all_waypoints[self.side]
-            
-            if (np.linalg.norm(current_target[0:2] - self.local_position[0:2]) < 0.1):
-                
-                print("\n>Completed side #: ", str(self.side+1))
-                print("Deviation from Target: ", str(np.linalg.norm(current_target[0:2] - self.local_position[0:2])))
-                
-                #start pursuing new side
-                self.side+=1
-                print("Moving to next side now!")
-                if (self.side<4):
-                    #Either change target    
-                    new_target = self.all_waypoints[self.side]    
-                    self.cmd_position(new_target[0], new_target[1], new_target[2], new_target[3])
+        elif self.flight_state == States.WAYPOINT: 
+              
+            if np.linalg.norm(self.target_position[0:2] - self.local_position[0:2]) < 1.0:
+                print("local position[0]: " + str(self.local_position[0]))
+                print("local position[1]: " + str(self.local_position[1]))
+                print("target location[0]: " + str(self.target_position))
+                print("target location[1]: " + str(self.target_position))
 
-                else:
-                    #Or start landing transition
-                    self.landing_transition()
+                if len(self.all_waypoints) > 0:
+                    self.waypoint_transition()
+                else: 
+                    if np.linalg.norm(self.local_velocity[0:2]) < 1.0:
+                        self.landing_transition()
         
+                
+                
+
+    def velocity_callback(self):
+        """
+        TODO: Implement this method
+        This triggers when `MsgID.LOCAL_VELOCITY` is received and self.local_velocity contains new data
+        
+        => Useful at instances when velocity changes.
+        
+        """
         if self.flight_state == States.LANDING:
             if ((self.global_position[2] - self.global_home[2] < 0.1) and
             abs(self.local_position[2]) < 0.01):
                 self.disarming_transition()
                 
-                
-    def velocity_callback(self):
-        """
-        TODO: Implement this method
-
-        This triggers when `MsgID.LOCAL_VELOCITY` is received and self.local_velocity contains new data
-        
-        => Useful at instances when velocity changes.
-        """
-                
     def state_callback(self):
         """
         TODO: Implement this method
-
         This triggers when `MsgID.STATE` is received and self.armed and self.guided contain new data
         """
         if not self.in_mission:
@@ -128,18 +118,19 @@ class BackyardFlyer(Drone):
         Format of waypoints chosen such that it can be used for:
         drone.cmd_position(2, 1, 0.5, 0)  
         =>Fly to a point 2 meters north, 1 meter east, at an altitude of 0.5 meters with a heading of 0 rads
-
         """
-        
-        v1 = np.array([0,5,3,0])
-        v2 = np.array([-5,5,3,0])
-        v3 = np.array([-5,0,3,0])
-        v4 = np.array([0,0,3,0])
+        wpoints=[]
+        v1 = np.array([5,0,3])
+        v2 = np.array([5,5,3])
+        v3 = np.array([0,5,3])
+        v4 = np.array([0,0,3])
                 
-        self.all_waypoints.append(v1)
-        self.all_waypoints.append(v2)
-        self.all_waypoints.append(v3)
-        self.all_waypoints.append(v4)
+        wpoints.append(v1)
+        wpoints.append(v2)
+        wpoints.append(v3)
+        wpoints.append(v4)
+
+        return wpoints
         
     def arming_transition(self):
         """TODO: Fill out this method
@@ -183,11 +174,9 @@ class BackyardFlyer(Drone):
         2. Transition to WAYPOINT state
         """
         print("waypoint transition")
-        self.calculate_box()
-        curr_target = self.all_waypoints[0]  # Initially, self.side = 0 
-        self.cmd_position(curr_target[0], curr_target[1], curr_target[2], curr_target[3])  
-        
-        print("Transition over")
+        self.target_position = self.all_waypoints.pop(0)
+        print('target position', self.target_position)
+        self.cmd_position(self.target_position[0], self.target_position[1], self.target_position[2], 0.0)
         self.flight_state = States.WAYPOINT
 
     def landing_transition(self):

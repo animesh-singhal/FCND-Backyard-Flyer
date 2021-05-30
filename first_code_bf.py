@@ -61,26 +61,46 @@ class BackyardFlyer(Drone):
 
                 
         if self.flight_state == States.WAYPOINT: 
+            print("self.side before while loop:", self.side)
             
-            #all_waypoints contains 4 target points. If you're pursuing the 1st side, you'll take the first target
-            current_target = self.all_waypoints[self.side]
             
-            if (np.linalg.norm(current_target[0:2] - self.local_position[0:2]) < 0.1):
+            # For the value of position to be updated, the function needs to get over. 
+            # Cannot keep it running in while loop
+            while (self.side<4):
+                curr_target = self.all_waypoints[self.side]
                 
-                print("\n>Completed side #: ", str(self.side+1))
-                print("Deviation from Target: ", str(np.linalg.norm(current_target[0:2] - self.local_position[0:2])))
+                #dist_local = math.sqrt(pow(curr_target[0]-self.local_position[0], 2) + 
+                #                       pow(curr_target[1]-self.local_position[1], 2))
                 
-                #start pursuing new side
-                self.side+=1
-                print("Moving to next side now!")
-                if (self.side<4):
-                    #Either change target    
-                    new_target = self.all_waypoints[self.side]    
-                    self.cmd_position(new_target[0], new_target[1], new_target[2], new_target[3])
-
-                else:
-                    #Or start landing transition
-                    self.landing_transition()
+                dist_local = np.linalg.norm(curr_target[0:2] - self.local_position[0:2])
+                #print("local position[0]: " + str(self.local_position[0]))
+                #print("local position[1]: " + str(self.local_position[1]))
+                #print("target location[0]: " + str(curr_target[0]))
+                #print("target location[1]: " + str(curr_target[1]))
+                
+                print(dist_local)
+                #print("\n")
+                               
+                
+                
+                #print("global dist: " + str(dist_global))
+                #print("Current side: " + str(self.side))
+                #print("Distance from target: ", dist_local)
+                 
+                    
+                if (dist_local < 0.1):
+                    print("yes, the Difference is less than 0.1")
+                    print("changing side")
+                    print("self.side:", self.side)
+                    self.side += 1
+                    if (self.side<4): 
+                        
+                        next_target = self.all_waypoints[self.side]
+                        print("next_target: ", str(next_target), "\n")
+                        self.cmd_position(next_target[0], next_target[1], next_target[2], next_target[3])
+                    
+                    else: 
+                        self.landing_transition()
         
         if self.flight_state == States.LANDING:
             if ((self.global_position[2] - self.global_home[2] < 0.1) and
@@ -88,6 +108,7 @@ class BackyardFlyer(Drone):
                 self.disarming_transition()
                 
                 
+
     def velocity_callback(self):
         """
         TODO: Implement this method
@@ -139,7 +160,7 @@ class BackyardFlyer(Drone):
         self.all_waypoints.append(v1)
         self.all_waypoints.append(v2)
         self.all_waypoints.append(v3)
-        self.all_waypoints.append(v4)
+        self.all_waypoints.append(v3)
         
     def arming_transition(self):
         """TODO: Fill out this method
